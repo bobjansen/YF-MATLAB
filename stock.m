@@ -43,6 +43,11 @@
 %   11/20/2010  Added disp method and additional fields from yfinance
 %   11/18/2010  First posted on Matlab Central
 
+% Bob Jansen
+% Developed 2011
+%   04/25/2011 Added return field (in addition to the LogReturns from the
+%   original)
+
 classdef (CaseInsensitiveProperties = true) stock < handle
     
     properties
@@ -97,8 +102,10 @@ classdef (CaseInsensitiveProperties = true) stock < handle
     
     properties (Dependent = true)
         
+        Return
+        Volatility
         LogReturn         % Log return on historical prices. *Not annualized*
-        Volatility        % Annualized volatility of Log Returns
+        LogVolatility     % Annualized LogVolatility of Log Returns
         MeanLogReturn     % Mean Annualized Log return on historical prices. 
         
     end
@@ -279,7 +286,7 @@ classdef (CaseInsensitiveProperties = true) stock < handle
             
             subplot(3,1,2)
             plot(q.Dates,q.LogReturn);
-            title(sprintf('Historical Volatility = %6.3f',q.Volatility));
+            title(sprintf('Historical LogVolatility = %6.3f',q.LogVolatility));
             ylabel('Log Return');
             datetick('x',10);
             grid;
@@ -293,24 +300,41 @@ classdef (CaseInsensitiveProperties = true) stock < handle
         end % plot
         
         
+        function r = get.Return(q)
+        % Comput Return using Price data
+            [n, m] = size(q.Price);
+            if n > 1
+                r = [zeros(1,m); ...
+                    (q.Price(2:end)-q.Price(1:end-1)) ./ q.Price(1:end-1)];
+            elseif n == 1
+                r = zeros(1, m);
+            else 
+                r = [];
+            end
+        end % get.Return
+        
+        function r = get.Volatility(q)
+            r = std(q.Return);
+        end % get.Volatility
+        
         function r = get.LogReturn(q)
         % Compute Log Return using Price data
             [n,m] = size(q.Price);
             if n > 1
                 r = [zeros(1,m);diff(log(q.Price))];
             elseif n == 1
-                r = [zeros(1,m)];
+                r = zeros(1,m);
             else
                 r = [];
             end    
         end % get.LogReturn
         
         
-        function r = get.Volatility(q)
-        % Computation of Historical Volatility. Computes the mean
-        % differences in Dates, then annualizes the Volatility
+        function r = get.LogVolatility(q)
+        % Computation of Historical LogVolatility. Computes the mean
+        % differences in Dates, then annualizes the LogVolatility
             r = std(q.LogReturn)*sqrt(365.25/mean(diff(q.Dates)));      
-        end % get.Volatility
+        end % get.LogVolatility
         
         
         function r = get.MeanLogReturn(q)
@@ -348,7 +372,7 @@ classdef (CaseInsensitiveProperties = true) stock < handle
             
             s = [s,sprintf('\n%s Price History: %s to %s\n',p.(q.Freq),datestr(min(q.Dates)),datestr(max(q.Dates)))];
             s = [s,sprintf('------------------------------------------------\n')];
-            s = [s,sprintf('Volatility:         %6.2f%% (annualized)\n',100*q.Volatility)];
+            s = [s,sprintf('LogVolatility:         %6.2f%% (annualized)\n',100*q.LogVolatility)];
             s = [s,sprintf('Mean Log Return:    %6.2f%% (annualized)\n',100*q.MeanLogReturn)];
             disp(s);
         end % disp
